@@ -18,8 +18,8 @@ pub fn executeCommand(allocator: std.mem.Allocator, command_args: []const []cons
 
     try process.spawn();
 
-    const stdout = try process.stdout.?.readToEndAlloc(allocator, 64 * 1024 * 1024); // 64MB max
-    const stderr = try process.stderr.?.readToEndAlloc(allocator, 64 * 1024 * 1024); // 64MB max
+    const stdout = try process.stdout.?.readToEndAlloc(allocator, 64 * 1024 * 1024);
+    const stderr = try process.stderr.?.readToEndAlloc(allocator, 64 * 1024 * 1024);
 
     const result = try process.wait();
 

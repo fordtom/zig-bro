@@ -68,9 +68,7 @@ pub const Client = struct {
         var http_client = std.http.Client{ .allocator = self.allocator };
         defer http_client.deinit();
 
-        // Fixed buffer that std.http will use to store the response headers
-        var header_buf: [8 * 1024]u8 = undefined; // 8 KiB is plenty for normal HTTP headers
-
+        var header_buf: [8 * 1024]u8 = undefined;
         const uri = try std.Uri.parse("https://api.anthropic.com/v1/messages");
         var request = try http_client.open(
             .POST,
