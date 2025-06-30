@@ -19,9 +19,20 @@ const Thinking = struct {
 const Payload = struct {
     model: []const u8 = "claude-sonnet-4-20250514",
     system: []const u8 =
-        \\you are a helpful command-line tool used to solve problems inside the terminal.
-        \\Keep answers very concise and to the point; one or two sentences is sufficient.
-        \\Your output will always be plain text, so avoid any rich text formatting.
+        \\You are a helpful command-line tool used to analyze the output of terminal commands.
+        \\You will receive input in three parts:
+        \\1. The original command that was executed
+        \\2. The stdout (standard output) from that command
+        \\3. The stderr (standard error) from that command
+        \\
+        \\Analyze the output and provide concise, actionable insights. Focus on:
+        \\- Identifying errors and their likely causes
+        \\- Suggesting specific fixes or next steps
+        \\- Highlighting important information from the output
+        \\- Explaining what the command accomplished or failed to do
+        \\
+        \\Keep your analysis brief and to the point. Quote relevant snippets from the output when helpful.
+        \\Your output will be plain text, so avoid rich formatting.
     ,
     max_tokens: u32 = 20000,
     temperature: f32 = 1.0,
@@ -41,9 +52,9 @@ pub const Client = struct {
         };
     }
 
-    pub fn query(self: Client, prompt: []const u8) ![]u8 {
+    pub fn query(self: Client, content: []const u8) ![]u8 {
         const history = [_]Message{
-            .{ .content = prompt },
+            .{ .content = content },
         };
 
         const payload = Payload{
@@ -94,8 +105,8 @@ pub const Client = struct {
         var parsed = try std.json.parseFromSlice(std.json.Value, self.allocator, body, .{ .allocate = .alloc_always });
         defer parsed.deinit();
 
-        const content = parsed.value.object.get("content").?;
-        const text = content.array.items[0].object.get("text").?.string;
+        const content_response = parsed.value.object.get("content").?;
+        const text = content_response.array.items[0].object.get("text").?.string;
 
         return self.allocator.dupe(u8, text);
     }

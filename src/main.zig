@@ -1,5 +1,6 @@
 const std = @import("std");
 const llm = @import("llm.zig");
+const wrapper = @import("wrapper.zig");
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
@@ -10,18 +11,22 @@ pub fn main() !void {
     };
     defer std.process.argsFree(allocator, args);
 
-    // TODO: Hand-roll proper CLI flag parsing.
-    // For the moment we treat *all* trailing args as the prompt.
     if (args.len <= 1) {
         printUsage();
         return;
     }
 
-    // TODO: Parse --api-key / --model
+    const command_args = args[1..];
+
+    // Execute the command and get results
+    const command_result = try wrapper.executeCommand(allocator, command_args);
+    defer command_result.deinit(allocator);
+
+    // Get API key for LLM
     const api_key_env = std.process.getEnvVarOwned(allocator, "ANTHROPIC_API_KEY") catch |err| {
         switch (err) {
             error.EnvironmentVariableNotFound => {
-                std.debug.print("Missing API key.  Supply via --api-key or set ANTHROPIC_API_KEY.\n", .{});
+                std.debug.print("Missing API key. Set ANTHROPIC_API_KEY environment variable.\n", .{});
             },
             else => {
                 std.debug.print("Unable to read ANTHROPIC_API_KEY: {s}\n", .{@errorName(err)});
@@ -29,30 +34,43 @@ pub fn main() !void {
         }
         return err;
     };
+    defer allocator.free(api_key_env);
 
+    // Combine command, stdout, and stderr into single prompt
     var prompt_builder = std.ArrayList(u8).init(allocator);
     defer prompt_builder.deinit();
 
-    var i: usize = 1;
-    while (i < args.len) : (i += 1) {
-        if (i > 1) try prompt_builder.append(' ');
-        try prompt_builder.appendSlice(args[i]);
+    try prompt_builder.appendSlice("Command executed: ");
+    for (command_args, 0..) |arg, i| {
+        if (i > 0) try prompt_builder.append(' ');
+        try prompt_builder.appendSlice(arg);
     }
-    const prompt = try prompt_builder.toOwnedSlice();
 
+    try prompt_builder.appendSlice("\n\nSTDOUT:\n");
+    try prompt_builder.appendSlice(command_result.stdout);
+
+    try prompt_builder.appendSlice("\n\nSTDERR:\n");
+    try prompt_builder.appendSlice(command_result.stderr);
+
+    const combined_prompt = try prompt_builder.toOwnedSlice();
+    defer allocator.free(combined_prompt);
+
+    // Send to LLM for analysis
     var client = llm.Client.init(allocator, api_key_env);
-
-    const result = client.query(prompt) catch |err| {
-        std.debug.print("Query failed: {s}\n", .{@errorName(err)});
+    const analysis = client.query(combined_prompt) catch |err| {
+        std.debug.print("LLM query failed: {s}\n", .{@errorName(err)});
         return;
     };
+    defer allocator.free(analysis);
 
-    std.debug.print("Received answer:\n{s}\n", .{result});
+    // Display analysis
+    std.debug.print("{s}\n", .{analysis});
 
-    allocator.free(result);
-    allocator.free(api_key_env);
+    // Exit with same code as the wrapped command
+    std.process.exit(command_result.exit_code);
 }
 
 fn printUsage() void {
-    std.debug.print("Usage: bro [--api-key KEY] [--model NAME] <prompt...>\n", .{});
+    std.debug.print("Usage: bro <command> [args...]\n", .{});
+    std.debug.print("Example: bro cargo build\n", .{});
 }
