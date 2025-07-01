@@ -105,7 +105,7 @@ fn showSpinner() void {
     while (true) {
         std.debug.print("\rAnalyzing... {c}", .{spinner_chars[counter % 4]});
         counter += 1;
-        std.time.sleep(100_000_000); // 100ms
+        std.Thread.sleep(100_000_000); // 100ms
 
         // simple implementation - check shared state in the future
         // this will be interrupted by the thread completion
@@ -156,7 +156,7 @@ pub fn main() !void {
 
     while (!shared_state.isCompleted()) {
         std.debug.print("\rAnalyzing... {c}", .{spinner_chars[counter % 4]});
-        counter = counter +% 1;
+        counter +%= 1;
         std.time.sleep(100_000_000); // 100ms
     }
 
