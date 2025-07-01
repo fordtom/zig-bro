@@ -2,7 +2,7 @@
     .name = .bro,
     .version = "0.1.0",
     .fingerprint = 0x7416a1e1464a2465,
-    .minimum_zig_version = "0.15.0-dev.885+e83776595",
+    .minimum_zig_version = "0.14.1",
     .dependencies = .{},
     .paths = .{
         "build.zig",
