@@ -1,5 +1,5 @@
-wut_rust
 .zig-cache
 zig-out
 .vscode
 .cursor
+.direnv
